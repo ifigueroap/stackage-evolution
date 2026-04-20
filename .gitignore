@@ -80,3 +80,6 @@ target/
 
 # Notebook Checkpoints
 .ipynb_checkpoints/
+
+# Virtual Environment (venv)
+.venv
