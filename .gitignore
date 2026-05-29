@@ -83,3 +83,5 @@ target/
 
 # Virtual Environment (venv)
 .venv
+
+notes.txt 
