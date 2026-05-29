@@ -22,16 +22,16 @@ install-libs:
     cabal install --lib extra
 
 make-parse-cabal:
-    ghc --make ParseCabal.hs -package Cabal
+    ghc --make ParseCabal.hs -package Cabal -package bytestring -package pretty
     rm ParseCabal.hi
     rm ParseCabal.o
 
 make-package-info-json:
-    ghc --make PackageInfoJSON.hs -package Cabal -package cpphs
+    ghc --make PackageInfoJSON.hs -package Cabal -package cpphs -package bytestring -package text -package pretty
     rm PackageInfoJSON.hi
     rm PackageInfoJSON.o
 
 make-package-imports:
-    ghc --make PackageImports.hs -package Cabal -package cpphs
+    ghc --make PackageImports.hs -package Cabal -package cpphs -package bytestring -package text -package pretty -package haskell-src-exts -package aeson -package split
     rm PackageImports.hi
     rm PackageImports.o
