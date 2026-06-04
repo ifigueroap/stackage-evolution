@@ -85,3 +85,10 @@ target/
 .venv
 
 notes.txt 
+
+# dataframes
+/data/dfs/
+/data/dfs_revised/
+/graphs
+/src/pickles/
+/src/pickles
