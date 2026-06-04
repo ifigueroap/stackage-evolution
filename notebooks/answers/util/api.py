@@ -27,7 +27,7 @@ def get_all_time_packages(df_list):
 def get_versions_df(df_list):
     lts_list = get_lts_list()
     pkgs = get_all_time_packages(df_list)
-    df = pd.DataFrame(index=pkgs, columns=lts_list)
+    df = pd.DataFrame(index=list(pkgs), columns=lts_list)
 
     for i, row in df.iterrows():
         for j, lts in enumerate(lts_list):
@@ -121,7 +121,7 @@ def get_pkgs_indirect_dependency(df1):
         visited[pkg] = True
         deps = df1[df1['package'] == pkg]['deps']
         if len(deps) > 0:
-            for dependency in deps[0]: 
+            for dependency in deps.iloc[0]: 
                 if not dependency in visited:
                     dfs(df1, dependency)
 
@@ -162,22 +162,37 @@ def get_update_count_df(df_list, versions_df):
     
     lts_list = get_lts_list()
     pkgs = get_all_time_packages(df_list)
-    df = pd.DataFrame(index=pkgs, columns=lts_list)
+    df = pd.DataFrame(index=list(pkgs), columns=lts_list)
 
     for i, row in df.iterrows():
         row_versions = versions_df[versions_df.index == row.name].values[0]
         
         for idx, version in enumerate(row_versions):
             if version == "":
-                row.values[idx] = -1
+                row.iloc[idx] = -1
                 continue
             
             last_value = last_update(row.values)
-            row.values[idx] = last_value + 1 if was_updated(row_versions, version, idx) else last_value
+            row.iloc[idx] = last_value + 1 if was_updated(row_versions, version, idx) else last_value
         
     return df.replace(-1, 0)
 
-
+def get_update_count_df_2(df_list, versions_df):
+    lts_list = get_lts_list()
+    df = pd.DataFrame(0, index=versions_df.index, columns=lts_list)
+    
+    for pkg in df.index:
+        for i in range(1, len(lts_list)):
+            curr_lts = lts_list[i]
+            prev_lts = lts_list[i-1]
+            
+            curr_version = versions_df.loc[pkg, curr_lts]
+            prev_version = versions_df.loc[pkg, prev_lts]
+            
+            if curr_version and prev_version and curr_version != prev_version:
+                df.loc[pkg, curr_lts] = 1
+    
+    return df
 def get_count_updated_packages_by_lts(df_list, df):
     lts_list = get_lts_list()
     count_total_pkg = create_lts_obj()
@@ -210,7 +225,7 @@ def get_count_updated_packages_by_lts(df_list, df):
 
 def build_continuity_matrix(df_list, pkgs, monad_direct):
     lts_list = get_lts_list()
-    df = pd.DataFrame(index=pkgs, columns=lts_list)
+    df = pd.DataFrame(index=list(pkgs), columns=lts_list)
 
     for i, row in df.iterrows():
         for j, lts in enumerate(lts_list):
@@ -240,8 +255,10 @@ def get_added_packages_monad_by_lts(continuity_df):
             if(row[lts] == 2):
                 if(j == 0):
                     count[j] += 1
-                elif(row[j-1] == 0):
-                    count[j] += 1
+                else:
+                    prev_lts = lts_list[j-1]
+                    if row[prev_lts] == 0:
+                        count[j] += 1
     
     return count
 
@@ -253,7 +270,8 @@ def get_removed_packages_monad_by_lts(continuity_df):
     for i, row in continuity_df.iterrows():
         for j, lts in enumerate(lts_list):
             if(j > 0):
-                if(row[j] == 0 and row[j-1] == 2):
+                prev_lts = lts_list[j-1]
+                if row[lts] == 0 and row[prev_lts] == 2:
                     count[j] += 1
 
     return count
@@ -265,11 +283,12 @@ def get_packages_started_use_mtl(continuity_df):
     
     for i, row in continuity_df.iterrows():
         for j, lts in enumerate(lts_list):
-            if(j == 0 and row[j] == 2):
-                count[j] += 1
-
-            if(j > 0):
-                if(row[j] == 2 and row[j-1] == 1):
+            if j == 0:
+                if row[lts] == 2:
+                    count[j] += 1
+            else:
+                prev_lts = lts_list[j-1]
+                if row[prev_lts] == 0 and row[lts] == 2:
                     count[j] += 1
 
     return count
@@ -282,7 +301,8 @@ def get_packages_stopped_use_mtl(continuity_df):
     for i, row in continuity_df.iterrows():
         for j, lts in enumerate(lts_list):
             if(j > 0):
-                if(row[j] == 1 and row[j-1] == 2):
+                prev_lts = lts_list[j-1]
+                if row[prev_lts] == 2 and row[lts] == 0:
                     count[j] += 1
                     
     return count
@@ -550,16 +570,23 @@ def in_range(v, range):
     return compare_range(v, range1, range2)
 
 def foo(df):
-    df['dependencies_status'] = ''
+    """Analyze dependency status for each package in the DataFrame"""
+    # Work on a copy to avoid modification warnings
+    df = df.copy()
+    
+    # Initialize the column with empty dictionaries
+    df['dependencies_status'] = [{} for _ in range(len(df))]
+    
     for idx, pkg in df.iterrows():
         dependencies_status = {}
-        for version_range_depencency in pkg["version-range-deps"]:
-            if len(version_range_depencency) != 2:
+        
+        for version_range_dependency in pkg["version-range-deps"]:
+            if len(version_range_dependency) != 2:
                 # without dependencies
                 continue
 
-            (name, range) = version_range_depencency
-            if range == "-any":
+            name, range_str = version_range_dependency
+            if range_str == "-any":
                 dependencies_status[name] = "ANY"
                 continue
 
@@ -572,24 +599,15 @@ def foo(df):
             lts_package_version = df.at[pkg_index, "version"]
             is_in_range = None
 
-            if "||" in range:
-                multiple_ranges = range.split(" || ")
+            if "||" in range_str:
+                multiple_ranges = range_str.split(" || ")
                 is_in_range = any(in_range(lts_package_version, r) for r in multiple_ranges)
                 dependencies_status[name] = "IN_RANGE" if is_in_range else "OUT_RANGE"
             else:
-                is_in_range = in_range(lts_package_version, range)
+                is_in_range = in_range(lts_package_version, range_str)
                 dependencies_status[name] = "IN_RANGE" if is_in_range else "OUT_RANGE"
-        df.at[idx,'dependencies_status'] = dependencies_status
-        '''if any(dependencies_status[name] == "OUT_RANGE" for name in dependencies_status):
-            out_range_dependencies = dict(filter(lambda status: status[1] == "OUT_RANGE", dependencies_status.items()))
-            out_range_names = list(out_range_dependencies.keys())
-            lts_dependencies_version = list(df[df["package"].isin(out_range_names)]["version"])
-            ranges = dict(filter(lambda range: range[0] in out_range_names, pkg["version-range-deps"]))
-            print(
-                 {
-                     "pkg": pkg["package"],
-                     "deps": out_range_dependencies,
-                     "lts_deps_version": lts_dependencies_version,
-                     "ranges": ranges,
-                 },
-            )'''
+        
+        # Use .at[] with the original index (NOT iloc with i)
+        df.at[idx, 'dependencies_status'] = dependencies_status
+    
+    return df
