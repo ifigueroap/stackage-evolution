@@ -122,7 +122,7 @@ def display_file(file_path):
     except Exception as e:
         console.print(f"[red]Error reading file: {e}[/red]")
 
-def open_in_vscode(file_path, line_num=0):
+def open_in_vscode(file_path, line_num=0, open_file=None):
     """
     Open a file in vscode using the 'code' command
     file_path: absolute path to the file
@@ -134,11 +134,13 @@ def open_in_vscode(file_path, line_num=0):
     
     #build the command
     cmd = ['code']
-    if line_num:
+    if line_num: # here is for the O command, opening a new tab in an already opened vscode tab
         cmd.append('--goto')
         cmd.append(file_path+':'+str(line_num))
-    else:
+    else: # here is for the o command, opening the directory
         cmd.append(file_path)
+        if open_file:
+            cmd.append(open_file)
     try:
         subprocess.run(cmd, check=True)
         console.print("[green]opened in vscode: [/green]"+file_path)
@@ -167,8 +169,8 @@ def search_packages(files_df, packages_df, search_term):
     if len(matching_packages) == 1:
         selected = matching_packages.iloc[0]
     else:
-        choice = Prompt.ask("Select package number (or 0 to cancel)", default="0")
-        if choice == "0":
+        choice = Prompt.ask("Select package number (or q to cancel)", default="0")
+        if choice == "q":
             return None, None
         try:
             idx = int(choice) - 1
@@ -280,7 +282,7 @@ def browse_files(lts):
         console.print(f"[yellow]Package:[/yellow] {current['package_name']} ({current['version']})")
         console.print(f"[yellow]Module:[/yellow] {current['module_name']}")
         console.print(f"[yellow]Path:[/yellow] {current['file_path']}")
-        console.print(f"[yellow]Lines:[/yellow] {current['line_count']}")
+        #console.print(f"[yellow]Lines:[/yellow] {current['line_count']}")
         
         #monad imports for the file
         monad_cols = [c for c in files_df.columns if c in ALL_MONAD_MODULES]
@@ -291,15 +293,15 @@ def browse_files(lts):
         
         #display file content
         abs_path = get_absolute_file_path(current, packages_df)
-        display_file(abs_path)
+        #display_file(abs_path)
         
         #navigation prompt
         #commands labels
         console.print("\n[dim]Commands:")
-        console.print("  [bold]n[/bold] next | [bold]p[/bold] previous | [bold]g[/bold] go to")
-        console.print("  [bold]s[/bold] search package | [bold]m[/bold] filter by monad | [bold]r[/bold] reset")
-        console.print("  [bold]o[/bold] open in VSCode | [bold]O[/bold] open package directory")
-        console.print(" [dim]  [bold]q[/bold] quit[/dim]")
+        console.print("[bold]n[/bold] next | [bold]p[/bold] previous | [bold]g[/bold] go to")
+        console.print("[bold]s[/bold] search package | [bold]m[/bold] filter by monad | [bold]r[/bold] reset")
+        console.print("[bold]o[/bold] open package directory | [bold]O[/bold] open in VSCode")
+        console.print("[dim][bold]q[/bold] quit[/dim]")
 
         choice = Prompt.ask("", choices=["n", "p", "s", "m", "r", "o", "O", "g", "q"], default="n")
                 
@@ -360,7 +362,7 @@ def browse_files(lts):
             except ValueError:
                 console.print("[red]Invalid input[/red]")
                 Prompt.ask("Press Enter to continue")
-        elif choice =='o':
+        elif choice =='O':
             #file in vsode
             abs_path = get_absolute_file_path(current, packages_df)
             if abs_path:
@@ -370,17 +372,16 @@ def browse_files(lts):
                 console.print("[red]Could not find file path[/red]")
                 Prompt.ask("Press Enter to continue")
 
-        elif choice =='O':
+        elif choice =='o':
             #open file directory in vscode
+            abs_path = get_absolute_file_path(current, packages_df)
             pkg_info = packages_df[packages_df['package'] == current['package_name']]
             if len(pkg_info)>0:
                 cabal_file = pkg_info.iloc[0].get('cabal-file', '')
                 if cabal_file and not pd.isna(cabal_file):
                     package_root = os.path.dirname(cabal_file)
                     if os.path.exists(package_root):
-                        open_in_vscode(package_root)
-                        console.print("[yellow]Press Enter to return to browser...[/yellow]")
-                        Prompt.ask("")
+                        open_in_vscode(package_root, 0, abs_path)
                     else:
                         console.print(f"[red]Package directory not found: {package_root}[/red]")
                         Prompt.ask("Press Enter to continue")
