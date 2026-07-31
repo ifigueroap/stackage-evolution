@@ -6,7 +6,8 @@ import os
 import fnmatch
 import subprocess
 import re
-
+from random import *
+import math 
 #function that gets the directory of a file.
 def get_cabal_file_directory(cabal_file):
     if not cabal_file or cabal_file == "":
@@ -280,3 +281,12 @@ def process_all_lts():
     
     return results
 
+###########################  sampling ##########################
+#function that produces a list of random indexes with no duplicates
+#example: get_sample_from_lts("24-37", "Control.Monad.Writer")
+def get_sample_from_lts(lts:str, monad_name:str, sample_percent):
+  df_path = f'../data/dfs/lts-{lts}/lts-{lts}-files.df'
+  df = pd.read_pickle(df_path)
+  rows=len(df[df[monad_name]==1]) #number of files that have that monad, for this lts
+  samp = sorted(sample(range(1,rows), math.floor(rows*sample_percent)))
+  return samp
