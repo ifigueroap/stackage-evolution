@@ -279,7 +279,8 @@ def browse_files(lts):
         
         #file info
         console.print(f"[bold cyan]File {idx+1}/{current_total}{mode_indicator}[/bold cyan]")
-        console.print(f"[yellow]Package:[/yellow] {current['package_name']} ({current['version']})")
+        #console.print(f"[yellow]Package:[/yellow] {current['package_name']} ({current['version']})")
+        console.print(f"[yellow]Package ID:[/yellow] {current['package_id']}")
         console.print(f"[yellow]Module:[/yellow] {current['module_name']}")
         console.print(f"[yellow]Path:[/yellow] {current['file_path']}")
         #console.print(f"[yellow]Lines:[/yellow] {current['line_count']}")
@@ -338,7 +339,7 @@ def browse_files(lts):
                 else:
                     console.print(f"[yellow]No files found importing {monad_name}[/yellow]")
                     monad_mode = False
-                Prompt.ask("Press Enter to continue")
+                
         elif choice =='n':
             if idx<current_total-1:
                 idx += 1

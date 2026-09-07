@@ -4,3 +4,6 @@ pandas==3.0.3
 Requests==2.34.2
 packaging==26.2
 rich==15.0.0
+openai-codex==0.144.4
+python-dotenv==1.2.2
+openai==2.53.0

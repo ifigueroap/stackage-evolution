@@ -95,3 +95,6 @@ notes.txt
 /src/pickles
 notebooks/answers/package_with_monads.xlsx
 /explorer/monad_processing_checkpoint.txt
+/catalog_agent/checkpoint.txt 
+/catalog_agent/results_writer.json 
+/catalog_agent/results/ 

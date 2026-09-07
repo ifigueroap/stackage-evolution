@@ -87,3 +87,10 @@ def extract_item_completed(codex_text):
                 return {"parse_error": True, "raw_text": text}
 
     return {"parse_error": True, "raw_text": codex_text}
+
+def load_generated_df(dfs_name: str, lts: str):
+    path = f"../data/dfs/lts-{lts}/lts-{lts}-{dfs_name}.df"
+    if not os.path.exists(path):
+        print("Error: file path not found " + path)
+        return None
+    return pd.read_pickle(path)

@@ -64,7 +64,7 @@ for index in range(checkpoint, total_files):
     module=row["module_name"]
     abs_path=row["absolute_file_path"]
     path = os.path.relpath(abs_path, repo_root)
-    print("index =", index)
+    print("index =", index,"/", total_files)
     print(package_id)
     print(package_name)
     print(module)

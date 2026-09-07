@@ -1,13 +1,6 @@
 import pandas as pd
 import os 
-
-def load_generated_df(dfs_name: str, lts: str):
-    path = f"../data/dfs/lts-{lts}/lts-{lts}-{dfs_name}.df"
-    if not os.path.exists(path):
-        print("Error: file path not found " + path)
-        return None
-    return pd.read_pickle(path)
-
+from utils import *
 
 writer_df=load_generated_df("writer","24-37")
 
