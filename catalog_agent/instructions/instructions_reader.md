@@ -156,6 +156,10 @@ c. direct_use_inner
     -- -> direct_use_inner = true
     ReaderT R [] is outer, not inner.
     ReaderT R IO is outer, not inner.
+A concrete ReaderT specialization in an instance head counts as an actual
+ReaderT computation when the instance methods define computations in that
+ReaderT monad. Such a use may receive direct_use_outer/inner/middle according
+to its expanded stack position.
 For a single concrete ReaderT layer, exactly one of direct_use_inner, direct_use_middle, or direct_use_outer applies. A file may have more than one of these categories true only if it contains multiple distinct ReaderT usages at different positions.
 
 3. direct_use_pure:
@@ -255,6 +259,11 @@ General rule for with_* categories:
         -- -> with_state = true
 
     provided the effect execution is genuinely part of the Reader-related computation rather than unrelated code elsewhere in the module.
+    Do not infer with_* merely from implementation details of called/imported
+    helpers in another module. External definitions may be inspected to expand
+    the Reader monad stack or understand an abstraction, but an unrelated effect
+    used internally by a called helper does not automatically combine that effect
+    with the Reader usage in the current file.
 
 11. with_exceptions:
 
@@ -282,13 +291,7 @@ General rule for with_* categories:
     foo = runExceptT someExceptTAction
     -- -> with_exceptions = true
 
-    Do not mark with_exceptions=true merely because Either, an exception type,
-    or error-related functions appear elsewhere in the file. The error handling
-    must be directly connected to the Reader-related computation being categorized.
-
-    Either counts only when it is actually used as the error-handling result or
-    interpretation of that Reader-related computation, not merely as ordinary data.
-
+    Do not mark with_exceptions=true merely because Either, Left, Right, an exception type, or other error-related functions occur somewhere in the file. The exception/error effect must be directly part of, executed by, interpreted by, or explicitly handled within the Reader-related computation being categorized. Either counts only when it represents or results from error handling directly connected to that Reader computation; using Either merely as ordinary data does not qualify. For example, a Reader computation that directly uses catch, throwError, or executes ExceptT may qualify, while a pure Reader computation that merely calls or contains functions returning Either does not
 12. with_io:
     Apply the general with_* rule to IO functionality, including IO,
     MonadIO/liftIO, and explicit IO specializations.
