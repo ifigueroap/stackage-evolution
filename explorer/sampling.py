@@ -15,13 +15,15 @@ def create_sample_file(lts:str, monad_name:str, numbers:list[int]):
   
 
 # writer
-sample_writer=get_sample_from_lts("24-37","Control.Monad.Writer", SAMPLE_PERCENT)
-create_sample_file("24-37", "writer",sample_writer)
+# sample_writer=get_sample_from_lts("24-37","Control.Monad.Writer", SAMPLE_PERCENT)
+# create_sample_file("24-37", "writer",sample_writer)
 # reader
-sample_reader=get_sample_from_lts("24-37","Control.Monad.Reader", SAMPLE_PERCENT)
-create_sample_file("24-37", "reader",sample_reader)
+# sample_reader=get_sample_from_lts("24-37","Control.Monad.Reader", SAMPLE_PERCENT)
+# create_sample_file("24-37", "reader",sample_reader)
 # state
-sample_state=get_sample_from_lts("24-37","Control.Monad.State", SAMPLE_PERCENT)
+sample_state=get_sample_from_lts("24-37",
+                                 ["Control.Monad.State", "Control.Monad.State.Strict", "Control.Monad.State.Lazy"],
+                                 SAMPLE_PERCENT)
 create_sample_file("24-37", "state",sample_state)
 
 

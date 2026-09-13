@@ -1,41 +1,48 @@
-You are categorizing a Haskell source code from Stackage packages that features the Control.Monad.Writer import. 
-Focus only on the usage of the Control.Monad.Writer. You will consider a use of Control.Monad.Writer everytime a function of said module appears in the code, 
-without it being hidden at import or redefined. Also should consider use when the module is aliased or qualified.
-You shall use only source-supported findings. Do not infer hidden types. Explain uncertainty in comment.
-This is the synopsis of Control.Monad.Writer from https://hackage-content.haskell.org/package/mtl-2.3.2/docs/Control-Monad-Writer-Lazy.html
+You are categorizing Haskell source code from Stackage packages that imports at least one of the following modules:
+    Control.Monad.Writer
+    Control.Monad.Writer.Lazy
+    Control.Monad.Writer.Strict
+    Control.Monad.Writer.Class
+    Control.Monad.Writer.CPS
+Those are the Writer modules in scope and Writer-related usage may be attributable to any of those modules.
+The import flags are independent. If multiple Writer modules are imported, mark every applicable flag
+Focus only on the usage attributable to those Writer imports. Consider a Writer use whenever an API symbol listed in the synopsis appears in the code and is attributable to one of those imports, provided that the symbol is not hidden by the import or redefined locally. Qualified and aliased uses also count.
 
-class (Monoid w, Monad m) => MonadWriter w (m :: Type -> Type) | m -> w where
+Use only source-supported findings. Do not infer hidden types. You may inspect other files from the package when necessary to categorize the file accurately. Inspect only files that are relevant and likely to resolve uncertainty about the categorization.
+This is the synopsis of Control.Monad.Writer:
 
-    writer :: (a, w) -> m a
-    tell :: w -> m ()
-    listen :: m a -> m (a, w)
-    pass :: m (a, w -> w) -> m a
+    class (Monoid w, Monad m) => MonadWriter w (m :: Type -> Type) | m -> w where
+        writer :: (a, w) -> m a
+        tell :: w -> m ()
+        listen :: m a -> m (a, w)
+        pass :: m (a, w -> w) -> m a
+    listens :: MonadWriter w m => (w -> b) -> m a -> m (a, b)
+    censor :: MonadWriter w m => (w -> w) -> m a -> m a
+    type Writer w = WriterT w Identity
+    runWriter :: Writer w a -> (a, w)
+    execWriter :: Writer w a -> w
+    mapWriter :: ((a, w) -> (b, w')) -> Writer w a -> Writer w' b
+    newtype WriterT w (m :: Type -> Type) a = WriterT (m (a, w))
+    runWriterT :: WriterT w m a -> m (a, w)
+    execWriterT :: Monad m => WriterT w m a -> m w
+    mapWriterT :: (m (a, w) -> n (b, w')) -> WriterT w m a -> WriterT w' n b
+    module Control.Monad.Trans
 
-listens :: MonadWriter w m => (w -> b) -> m a -> m (a, b)
-censor :: MonadWriter w m => (w -> w) -> m a -> m a
-type Writer w = WriterT w Identity
-runWriter :: Writer w a -> (a, w)
-execWriter :: Writer w a -> w
-mapWriter :: ((a, w) -> (b, w')) -> Writer w a -> Writer w' b
-newtype WriterT w (m :: Type -> Type) a = WriterT (m (a, w))
-runWriterT :: WriterT w m a -> m (a, w)
-execWriterT :: Monad m => WriterT w m a -> m w
-mapWriterT :: (m (a, w) -> n (b, w')) -> WriterT w m a -> WriterT w' n b
-module Control.Monad.Trans
+Not every Writer module in scope necessarily exports every API symbol listed in this synopsis. Count an API occurrence only when the symbol is actually attributable to the Writer module imported by the file. Uses of Writer and WriterT from Control.Monad.Writer.CPS are concrete Writer computations and are categorized using the same direct_use_* rules.
 
-
-The first 4 lines you will receive are 4 lines are metadata (package, module, path)
-and then goes the content of the file. 
-The expected output is in Json style like this example:
+The first 3 lines you will receive are metadata: package_id, module, and file_path. The remaining lines contain the source file.
+The expected output is in Json style like this made-up example:
 {
-"package_id": "equivalence-0.4.1.1"
-"package": "equivalence",
-"module": "Data.Equivalence.Monad",
-"path": "src/Data/Equivalence/Monad.hs",
-"comment": "defines a new monad transformer deriving MonadWriter",
+"package_id": "example-0.4.1.1",
+"module": "Data.Example.Monad",
+"file_path": "src/Data/Example/Monad.hs",
+"comment": "",
 "explicit_import": false,
+"qualified_import": false,
 "strict_import": false,
 "lazy_import": false,
+"class_import": false,
+"cps_import": false,
 "api_usage": {
 "MonadWriter": 1,
 "writer": 0,
@@ -55,639 +62,455 @@ The expected output is in Json style like this example:
 },
 "categories": {
 "lifting": true,
+"lifting_t": false,
 "direct_use_pure": false,
 "direct_use_inner": false,
+"direct_use_middle": false,
 "direct_use_outer": false,
+"polymorphic_interface_use": false,
+"concrete_interface_use": false,
+"constraint_only":false,
 "not_used": false,
 "with_exceptions": false,
+"with_io": false,
+"with_reader": false,
+"with_state": false,
+"with_parser": false,
+"with_rws": false,
 "re_export": false
 },
 "need_review": true
 }
 
-Where, "package_id", "package", "module" "path" are given to you. 
-"comment" Its an optional string with a brief comment about the module. Only use when explaining "need_review", noting unusual usage, suggesting new category reporting ambiguous use cases. Otherwise just "".
-"explicit_import" this is a boolean, true if the functions of the module are imported explicitly using an import list (for example: import Control.Monad.Writer ( WriterT )), false if not.
-"strict_import" is a boolean, true if the import was the Strict version of the module, like Control.Monad.Writer.Strict and its false otherwise.
-"lazy_import" is a boolean, true if the import was the Lazy version of the module, like Control.Monad.Writer.Lazy and its false otherwise.
-"need_review" is a boolean, true if you consider that no category fits properly, or if you lack context or information to properly categorize, or if simply there is something strange in the file. Leaving a brief comment about it in the "comment".
-"api_usage" contains an int count for every function in the Control.Monad.Writer. Should only count the occurrences as they come from the import, for example, redefining "tell" in a nonrelated way no longer counts; although specifying tell in instancing for MonadWriter or similar should be counted. Type signatures are counted as occurrences. Do not count the import or explicit import occurrences.
-"categories" these are independent boolean properties, so a file might satisfy multiple categories simultaneously. "categories" contains the categories in which the usage of Control.Monad.Writer falls into for this file. A property or category is marked true if it fits the criteria for said category, which are explained later. Also mention that categories are not necessarily mutually exclusive and that a single file may contain several different uses, resulting in multiple categories being present.
+Where, "package_id", "module" and "file_path" are given to you. 
+"comment" Its an optional string with a brief comment about the module. Only use when explaining "need_review", noting unusual usage, suggesting a new category and reporting ambiguous use cases or difficulty in finding a fitting category. If you inspect another file, it should also be noted in the comment. Otherwise just "".
 
-There are 7 categories, and a file may present multiple categories (examples dont show the full file, only the Control.Monad.Writer related parts)
-Here are the categories with examples:
-1. lifting: This category is about making capabilities from the inner monad available in outer transformer layers, 
-            usually defines how tell passes through a transformer layer, maintaning capability through transformer stacks.
-            Mark lifting=true when there is a mechanism that propagates or lifts MonadWriter capabilities from an inner to an outer monad.
-            Additionally, ordinary cases like this {foo = lift $ tell ["x"]} fall more under direct_use than lifting.
-            If WriterT/runWriterT appears only in an instance that lifts behavior through the transformer layer, classify it as lifting=true and do not mark direct_use_outer=true unless there is an actual concrete WriterT program used as the outer monad stack in the file.
-2. direct use (pure): Mark direct_use_pure=true when using Writer or WriterT as the only monad layer with no transformer stack and no effects.
-                      So (Writer w) (WriterT w Identity) and aliases of them can be classified as pure.
-3. direct use (inner): Writer or WriterT is at the bottom of the stack, and there should be at least one layer wrapping it. So that the log persists through effects  
-4. direct use (outer):  Mark direct_use_outer when Writer or WriterT is the outer layer (top of the stack) so the inner effects happen inside the Writer.
-                        For example, (WriterT w m a), where m has effects or is a transformer stack. But if just (Writer w a) then it is probably just direct_use_pure=true.
-                        If WriterT/runWriterT is used only to define a transformer instance that propagates writer-related behavior through the layer, classify it as lifting=true. Do not mark direct_use_outer=true unless the file contains an actual concrete computation whose primary monad is WriterT ... and not just an instance/lifted behavior definition.       
-5. Not used:  mark not_used=true when the monad is not used, none of the functions defined by the Control.Monad.Writer are present. No use of class, type, constructor, function, method, or re-export.
-              Its expected that here the api_usage counts are 0.
-6. With Exeptions:  Mark with_exceptions=true when Writer related computations are directly combined or used along side with some exception, error handling or exception-catching operations such as ExceptT, MonadError, Either, ErrorT or similar.
-                    Do not set it merely because an error-related module is imported or an unrelated error type appears elsewhere in the file
-7. Re-export: Mark re_export=true when any function or target symbol of Control.Monad.Writer are re-exported.
+"explicit_import" is a boolean that indicates whether at least one Writer import uses an explicit import list. The Writer imports considered are the Writer modules in scope. This property is independent of whether the import is qualified.
 
---------  examples ---------
-Here are 9 examples and after all of them there is a list with the expected outputs. The (...) notes there is a chunk of code there, that has no presence of writer activity.
-example 1:
-    equivalence
-    Data.Equivalence.Monad
-    src/Data/Equivalence/Monad.hs
+Set explicit_import=true when at least one of these Writer modules specifies imported names in parentheses.
 
-    newtype EquivT s c v m a = EquivT {unEquivT :: ReaderT (Equiv s c v) (STT s m) a}
-        deriving (Functor, Applicative, Monad, MonadError e, MonadState st, MonadWriter w)
+Examples:
+    import Control.Monad.Writer (tell, listen)
+    import Control.Monad.Writer.Strict (WriterT(..), runWriterT)
+    import qualified Control.Monad.Writer.Lazy as W (tell, WriterT)
+In all of these cases, explicit_import=true.
+Set explicit_import=false when none of the Writer imports uses an explicit import list.
 
-    instance (MonadEquiv c v d m, Monoid w) => MonadEquiv c v d (WriterT w m) where
-        equate  x y = lift $ equate x y
-        combine x y = lift $ combine x y
-example 2: 
-    servant-checked-exceptions-core
-    Servant.Checked.Exceptions.Internal.EnvelopeT
-    src/Servant/Checked/Exceptions/Internal/EnvelopeT.hs
-
-    instance MonadWriter w m => MonadWriter w (EnvelopeT es m) where
-        writer = lift . writer
-        tell = lift . tell
-        listen (EnvelopeT m) =
-            EnvelopeT $ do
-            (envelopeA, w) <- listen m
-            pure $ fmap (,w) envelopeA
-        pass (EnvelopeT m) =
-            EnvelopeT $ do
-            envel <- m
-            pass . pure $
-                case envel of
-                SuccEnvelope (a, f) -> (SuccEnvelope a, f)
-                ErrEnvelope es -> (ErrEnvelope es, id)
-example 3:
+Examples:
+    import Control.Monad.Writer
     import Control.Monad.Writer.Strict
-    interleaveRanges :: forall a. (HasRangeWithoutFile a) => [a] -> [a] -> ([a], [(a,a)])
-    interleaveRanges as bs = runWriter $ go as bs
-    where
-        go []         as = return as
-        go as         [] = return as
-        go as@(a:as') bs@(b:bs') =
-        let ra = getRangeWithoutFile a
-            rb = getRangeWithoutFile b
+    import qualified Control.Monad.Writer.Lazy as W
+If multiple Writer variants are imported, explicit_import=true if at least one of them uses an explicit import list.
 
-            ra0 = rStart ra
-            rb0 = rStart rb
+"qualified_import" is a boolean that indicates whether at least one Writer import uses the qualified keyword. The Writer imports considered are the Writer modules in scope. This property is independent of whether an explicit import list is present.
 
-            ra1 = rEnd ra
-            rb1 = rEnd rb
-        in
-        if ra1 <= rb0 then
-            (a:) <$> go as' bs
-        else if rb1 <= ra0 then
-            (b:) <$> go as bs'
-        else do
-            tell [(a,b)]
-            if ra0 < rb0 || (ra0 == rb0 && ra1 <= rb1) then
-            (a:) <$> go as' bs
-            else
-            (b:) <$> go as bs'
-example 4:
-    main :: IO ()
-    main = defaultMain testSuite
+Set qualified_import=true when at least one of these Writer modules is imported qualified.
+Examples:
+    import qualified Control.Monad.Writer
+    import qualified Control.Monad.Writer.Strict as W
+    import qualified Control.Monad.Writer.Lazy as W (tell, WriterT)
+In all of these cases, qualified_import=true.
 
-    testSuite :: TestTree
-    testSuite = testGroup "free-vl" [
-        testCase "example usage" $ do
-        let res = execWriter $ iterM interpreter $ do
-                    logDebug "Hey a debug"
-                    n <- randomNumber
-                    logInfo ("Got a random number " <> show n)
-        res @?= fromList [ (Debug, "Hey a debug")
-                        , (Info, "Got a random number 42")
-                        ]
-    ]
-    interpreter :: Effects MyEffects (Writer (Seq (LogLevel, String)))
-    interpreter = fakeLogger .:. fakeRNG .:. EmptyE
-    fakeLogger :: Logging (Writer (Seq (LogLevel, String)))
-    fakeLogger = Logging (\lvl msg -> tell (singleton (lvl, msg)))
-
-example 5: 
-    createEmbeddedFont :: FontData -> PDF (PDFReference EmbeddedFont)
-    createEmbeddedFont (Type1Data d) = do 
-        PDFReference s <-  createContent (tell $ fromByteString d) Nothing 
-        return (PDFReference s)
-example 6:
-    main :: IO ()
-    main = hspec $ do
-        describe "Combinators" Spec.spec
-        describe "data loss rules" $ do
-            it "consumes the source to quickly" $ do
-                x <- runConduitRes $ CL.sourceList [1..10 :: Int] .| do
-                    strings <- CL.map show .| CL.take 5
-                    liftIO $ putStr $ unlines strings
-                    CL.fold (+) 0
-                40 `shouldBe` x
-
-            it "correctly consumes a chunked resource" $ do
-                x <- runConduitRes $ (CL.sourceList [1..5 :: Int] `mappend` CL.sourceList [6..10]) .| do
-                    strings <- CL.map show .| CL.take 5
-                    liftIO $ putStr $ unlines strings
-                    CL.fold (+) 0
-                40 `shouldBe` x
-    ...
-    describe "monad transformer laws" $ do
-        it "transPipe" $ do
-            let source = CL.sourceList $ replicate 10 ()
-            let tell' x = tell [x :: Int]
-
-            let replaceNum1 = C.awaitForever $ \() -> do
-                    i <- lift get
-                    lift $ (put $ i + 1) >> (get >>= lift . tell')
-                    C.yield i
-
-            let replaceNum2 = C.awaitForever $ \() -> do
-                    i <- lift get
-                    lift $ put $ i + 1
-                    lift $ get >>= lift . tell'
-                    C.yield i
-
-            x <- runWriterT $ runConduit $ source .| C.transPipe (`evalStateT` 1) replaceNum1 .| CL.consume
-            y <- runWriterT $ runConduit $ source .| C.transPipe (`evalStateT` 1) replaceNum2 .| CL.consume
-            x `shouldBe` y
-    ...
-    describe "WriterT" $
-            it "pass" $
-                let writer = W.pass $ do
-                    W.tell [1 :: Int]
-                    pure ((), (2:))
-                in execWriter (runConduit writer) `shouldBe` [2, 1]
-
-    describe "Data.Conduit.Lift" $ do
-        it "execStateC" $ do
-            let sink = C.execStateLC 0 $ CL.mapM_ $ modify . (+)
-                src = mapM_ C.yield [1..10 :: Int]
-            res <- runConduit $ src .| sink
-            res `shouldBe` sum [1..10]
-
-        it "execWriterC" $ do
-            let sink = C.execWriterLC $ CL.mapM_ $ tell . return
-                src = mapM_ C.yield [1..10 :: Int]
-            res <- runConduit $ src .| sink
-            res `shouldBe` [1..10]   
-example 7:
-    transformTypeFamilies :: ExtraTypeScriptOptions -> Type -> WriterT [ExtraDeclOrGenericInfo] Q Type
-    transformTypeFamilies eo@(ExtraTypeScriptOptions {..}) (AppT (ConT name) typ)
-    | name `L.elem` typeFamiliesToMapToTypeScript = lift (reify name) >>= \case
-        FamilyI (ClosedTypeFamilyD (TypeFamilyHead typeFamilyName _ _ _) eqns) _ -> handle typeFamilyName eqns
-
-    #if MIN_VERSION_template_haskell(2,15,0)
-        FamilyI (OpenTypeFamilyD (TypeFamilyHead typeFamilyName _ _ _)) decs -> handle typeFamilyName [eqn | TySynInstD eqn <- decs]
-    #else
-        FamilyI (OpenTypeFamilyD (TypeFamilyHead typeFamilyName _ _ _)) decs -> handle typeFamilyName [eqn | TySynInstD _name eqn <- decs]
-    #endif
-
-        _ -> AppT (ConT name) <$> transformTypeFamilies eo typ
-    | otherwise = AppT (ConT name) <$> transformTypeFamilies eo typ
-            where
-            handle :: Name -> [TySynEqn] -> WriterT [ExtraDeclOrGenericInfo] Q Type
-            handle typeFamilyName eqns = do
-                name' <- lift $ newName (nameBase typeFamilyName <> "'")
-
-                f <- lift $ newName "f"
-    #if MIN_VERSION_template_haskell(2,21,0)
-                let inst1 = DataD [] name' [PlainTV f BndrReq] Nothing [] []
-    #elif MIN_VERSION_template_haskell(2,17,0)
-                let inst1 = DataD [] name' [PlainTV f ()] Nothing [] []
-    #else
-                let inst1 = DataD [] name' [PlainTV f] Nothing [] []
-    #endif
-                tell [ExtraTopLevelDecs [inst1]]
-
-                imageTypes <- lift $ getClosedTypeFamilyImage eqns
-                inst2 <- lift $ [d|instance (Typeable g, TypeScript g) => TypeScript ($(conT name') g) where
-                                    getTypeScriptType _ = $(TH.stringE $ nameBase name) <> "[" <> (getTypeScriptType (Proxy :: Proxy g)) <> "]"
-                                    getTypeScriptDeclarations _ = [$(getClosedTypeFamilyInterfaceDecl name eqns)]
-                                    getParentTypes _ = $(listE [ [|TSType (Proxy :: Proxy $(return x))|] | x <- imageTypes])
-                                |]
-                tell [ExtraTopLevelDecs inst2]
-
-                tell [ExtraParentType (AppT (ConT name') (ConT ''T))]
-
-                ret <- transformTypeFamilies eo (AppT (ConT name') typ)
-                tell [ExtraConstraint (AppT (ConT ''TypeScript) ret)]
-                return ret
-                ...
-example 8:
-    import AbsSyn
+Set qualified_import=false when all Writer imports are unqualified.
+Examples:
     import Control.Monad.Writer
-    import Control.Monad.Except
-    import Data.List(partition,intersperse)
-    import qualified Data.Set as S
-    import qualified Data.Map as M    -- XXX: Make it work with old GHC.
-    expand_rules :: [Rule] -> Either String [Rule1]
-    expand_rules rs = do let (funs,rs1) = split_rules rs
-                        (as,is) <- runM2 (mapM (`inst_rule` []) rs1)
-                        bs <- make_insts funs (S.toList is) S.empty
-                        return (as++bs)
-    type RuleName = String
-    type Inst     = (RuleName, [RuleName])
-    type Funs     = M.Map RuleName Rule
-    type Rule1    = (RuleName,[Prod1],Maybe String)
-    type Prod1    = ([RuleName],String,Int,Maybe String)
-    inst_name :: Inst -> RuleName
-    inst_name (f,[])  = f
-    inst_name (f,xs)  = f ++ "(" ++ concat (intersperse "," xs) ++ ")"
-    -- | A renaming substitution used when we instantiate a parameterized rule.
-    type Subst    = [(RuleName,RuleName)]
-    type M1       = Writer (S.Set Inst)
-    type M2       = ExceptT String M1
-    ...
-    runM2 :: ExceptT e (Writer w) a -> Either e (a, w)
-    runM2 m = case runWriter (runExceptT m) of
-                (Left e,_)   -> Left e
-                (Right a,xs) -> Right (a,xs)
-example 9:
-    module Rebase.Control.Monad.Writer
-    ( module Control.Monad.Writer,
-    )
-    where
-    import Control.Monad.Writer
-example 10:
-    -- This is lifting, not direct_use_outer:
-    instance CatchIO m => CatchIO (WriterT w m) where
-    catchIO m h = WriterT $ runWriterT m `catchIO` \e -> runWriterT (h e)
-[
-{
-"package_id": "equivalence-0.4.1.1",
-"package": "equivalence",
-"module": "Data.Equivalence.Monad",
-"path": "src/Data/Equivalence/Monad.hs",
-"comment": "defines a new monad transformer deriving MonadWriter",
-"explicit_import": false,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 1,
-"writer": 0,
-"tell": 0,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 0,
-"runWriter": 0,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 1,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": true,
-"direct_use_pure": false,
-"direct_use_inner": false,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": false,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "servant-checked-exceptions-core-2.2.0.1",
-"package": "servant-checked-exceptions-core",
-"module": "Servant.Checked.Exceptions.Internal.EnvelopeT",
-"path": "src/Servant/Checked/Exceptions/Internal/EnvelopeT.hs",
-"comment": "The EnvelopeT is an instance of MonadWriter and it specifies tell, listen, writer and pass",
-"explicit_import": true,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 2,
-"writer": 2,
-"tell": 2,
-"listen": 2,
-"pass": 2,
-"listens": 0,
-"censor": 0,
-"Writer": 0,
-"runWriter": 0,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 0,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": true,
-"direct_use_pure": false,
-"direct_use_inner": false,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": true,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "Agda-2.8.0",
-"package": "Agda",
-"module": "full.Agda.Syntax.Position",
-"path": "src/full/Agda/Syntax/Position.hs",
-"comment": "",
-"explicit_import": true,
-"strict_import": true,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 1,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 1,
-"runWriter": 0,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 0,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": false,
-"direct_use_pure": true,
-"direct_use_inner": false,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": false,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "free-vl-0.1.4",
-"package": "free-vl",
-"module": "Spec",
-"path": "test/Spec.hs",
-"comment": "",
-"explicit_import": true,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 1,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 2,
-"runWriter": 0,
-"execWriter": 1,
-"mapWriter": 0,
-"WriterT": 0,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": false,
-"direct_use_pure": true,
-"direct_use_inner": true,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": false,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "HPDF-1.7",
-"package": "HPDF",
-"module": "Graphics.PDF.Pages",
-"path": "Graphics/PDF/Pages.hs",
-"comment": "Direct use of tell to write the content of a pdf file",
-"explicit_import": false,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 1,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 0,
-"runWriter": 0,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 0,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": false,
-"direct_use_pure": false,
-"direct_use_inner": true,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": false,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "conduit-1.3.6.1",
-"package": "conduit",
-"module": "main",
-"path": "test/main.hs",
-"comment": "",
-"explicit_import": true,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 6,
-"listen": 1,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 1,
-"runWriter": 0,
-"execWriter": 2,
-"mapWriter": 0,
-"WriterT": 0,
-"runWriterT": 2,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": false,
-"direct_use_pure": true,
-"direct_use_inner": true,
-"direct_use_outer": true,
-"not_used": false,
-"with_exceptions": false,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "aeson-typescript-0.6.4.0",
-"package": "aeson-typescript",
-"module": "Data.Aeson.TypeScript.Transform",
-"path": "src/Data/Aeson/TypeScript/Transform.hs",
-"comment": "",
-"explicit_import": false,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 4,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 0,
-"runWriter": 0,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 2,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": false,
-"direct_use_pure": false,
-"direct_use_inner": false,
-"direct_use_outer": true,
-"not_used": false,
-"with_exceptions": false,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "happy-meta-0.2.1.0",
-"package": "happy-meta",
-"module": "ParamRules",
-"path": "src/ParamRules.hs",
-"comment": "Writer wrapped by ExceptT for logs with error handling",
-"explicit_import": false,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 1,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 2,
-"runWriter": 1,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 0,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": false,
-"direct_use_pure": false,
-"direct_use_inner": true,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": true,
-"re_export": false
-},
-"need_review": false
-},
-{
-"package_id": "rebase-1.21.2",
-"package": "rebase",
-"module": "Rebase.Control.Monad.Writer",
-"path": "library/Rebase/Control/Monad/Writer.hs",
-"comment": "Re-exports the Control.Monad.Writer module",
-"explicit_import": false,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 0,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 0,
-"runWriter": 0,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 0,
-"runWriterT": 0,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": false,
-"direct_use_pure": false,
-"direct_use_inner": false,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": false,
-"re_export": true
-},
-"need_review": false
-},
-{
-"package_id": "Agda-2.8.0",
-"package": "Agda",
-"module": "full.Agda.Utils.IO",
-"path": "src/full/Agda/Utils/IO.hs",
-"comment": "",
-"explicit_import": false,
-"strict_import": false,
-"lazy_import": false,
-"api_usage": {
-"MonadWriter": 0,
-"writer": 0,
-"tell": 0,
-"listen": 0,
-"pass": 0,
-"listens": 0,
-"censor": 0,
-"Writer": 0,
-"runWriter": 0,
-"execWriter": 0,
-"mapWriter": 0,
-"WriterT": 2,
-"runWriterT": 2,
-"execWriterT": 0,
-"mapWriterT": 0
-},
-"categories": {
-"lifting": true,
-"direct_use_pure": false,
-"direct_use_inner": false,
-"direct_use_outer": false,
-"not_used": false,
-"with_exceptions": true,
-"re_export": false
-},
-"need_review": false
-}
-]
-Only inspect the file at file_path. Do not open, search, or reference other files unless absolutely necessary.
-Return only a valid JSON object with the above structure. No prose, no markdown, no code fences, no explanation.
+    import Control.Monad.Writer.Strict (tell)
+    import Control.Monad.Writer.Lazy
+If multiple Writer variants are imported, qualified_import=true if at least one of them is qualified.
+
+"strict_import" is a boolean that indicates whether Control.Monad.Writer.Strict is imported. Set strict_import=true if Control.Monad.Writer.Strict appears in at least one import declaration, regardless of whether that import is qualified or uses an explicit import list.
+Examples:
+    import Control.Monad.Writer.Strict
+    import Control.Monad.Writer.Strict (tell)
+    import qualified Control.Monad.Writer.Strict as W
+In all of these cases, strict_import=true. Otherwise, set strict_import=false.
+
+"lazy_import" is a boolean that indicates whether Control.Monad.Writer.Lazy is imported. Set lazy_import=true if Control.Monad.Writer.Lazy appears in at least one import declaration, regardless of whether that import is qualified or uses an explicit import list.
+Examples:
+    import Control.Monad.Writer.Lazy
+    import Control.Monad.Writer.Lazy (tell)
+    import qualified Control.Monad.Writer.Lazy as W
+In all of these cases, lazy_import=true. Otherwise, set lazy_import=false.
+These import flags are independent. More than one may be true at the same time.
+For example:
+    import Control.Monad.Writer.Strict (tell)
+    import qualified Control.Monad.Writer.Lazy as L
+gives:
+    explicit_import = true
+    qualified_import = true
+    strict_import = true
+    lazy_import = true
+
+
+"class_import": Set class_import=true if Control.Monad.Writer.Class is imported at least once. Otherwise, set class_import=false.
+Example:
+    import Control.Monad.Writer.Class
+or:    
+    import qualified Control.Monad.Writer.Class as W
+
+    Both give class_import=true.
+
+
+"cps_import"
+    Set cps_import=true if Control.Monad.Writer.CPS is imported at least once. Otherwise, set cps_import=false.
+    Example:
+        import Control.Monad.Writer.CPS
+    or:
+        import qualified Control.Monad.Writer.CPS as W
+    Both give cps_import=true.
+
+
+"need_review" is a boolean, true if you consider that no category fits properly, or if you lack context or information to properly categorize, or if simply there is something strange in the file. Leaving a brief comment about it in the "comment".
+
+"api_usage" contains an int count for every listed API symbol attributable to the Writer-related imports stated at the beginning of these instructions. Should only count the occurrences as they come from the import, for example, redefining "tell" in a nonrelated way no longer counts; although specifying tell in instancing for MonadWriter or similar should be counted. Declaration heads, instances heads, method definitions, method usages and type signatures are counted as occurrences. Occurrences in module export lists also count. Do not count the import or explicit import occurrences. Do not count commented or string occurences. A symbol is counted only when syntactically attributable to any of the Writer modules in scope, either through an unqualified import binding or through a qualified/aliased import of any of the Writer modules in scope.
+
+"categories" these are independent boolean properties.A file might satisfy multiple categories simultaneously. "categories" contains the categories in which the usage of Control.Monad.Writer falls into for this file. A property or category is marked true if it fits the criteria for said category, which are explained below. Also, categories are not necessarily mutually exclusive and that a single file may contain several different uses, resulting in multiple categories being present.
+
+1. lifting:
+    Mark lifting=true when a transformer or wrapper other than WriterT is given MonadWriter capability by explicitly forwarding one or more Writer operations to an underlying monad that already provides MonadWriter. For example:
+
+        instance MonadWriter w m => MonadWriter w (MyT m) where
+            tell = lift . tell
+            ...
+    Here the MyT transformer is receiving Writer capability from m, so lifting=true.
+    Do not mark it when WriterT itself is the transformer layer being implemented; that belongs to lifting_t.
+
+2. lifting_t: 
+    Mark lifting_t=true when WriterT itself is the transformer layer whose implementation or instances are being defined. This includes implementing MonadWriter for WriterT, or giving WriterT another capability by forwarding operations to its underlying monad:
+        instance MyMonadClass m => MyMonadClass (WriterT w m) where
+            myMethod = lift myMethod
+            myOtherMethod = mapWriterT myOtherMethod
+    Here WriterT is the transformer receiving the capability, so lifting_t=true.
+    If the file defines or implements MonadWriter for WriterT, also counts as lifting_t=true:
+        instance (Monoid w, Monad m) => MonadWriter w (WriterT w m) where
+            tell w = WriterT (return ((), w))
+            ...  
+    Do not mark direct_use_inner, direct_use_middle, or direct_use_outer merely because WriterT appears in such an instance. Those categories require an actual WriterT computation used as part of the program's computation stack.
+
+
+For direct_use_inner, direct_use_middle, and direct_use_outer, classify the position of a concrete WriterT computation relative to other transformer layers. Generic instances whose purpose is to define, lift, or forward behavior through WriterT are not direct uses.
+A WriterT occurrence in an instance head does not by itself establish a direct-use category. Mark a direct-use category only when WriterT is being used as an actual computation stack, not merely when an instance or capability is being implemented for WriterT.
+3. direct_use_pure:
+    Mark direct_use_pure=true when an actual Writer computation has no effects other than Writer itself. So we would see things like `Writer w a` or `WriterT w Identity a`. A simple example would be:
+        myLog :: Writer [String] ()
+        myLog = do
+            tell ["my"]
+            tell ["log"]
+
+    Do not mark direct_use_inner, direct_use_middle, or direct_use_outer solely because of a pure Writer or `WriterT w Identity` computation.
+
+4. direct_use_inner:
+    Mark direct_use_inner=true when an actual WriterT computation has at least one transformer layer above it, but no transformer layer below it; only a base monad is underneath WriterT. So things like `StateT S (WriterT Log IO)` and `ReaderT Env (WriterT Log [])` make direct_use_inner=true. An example:
+        type MyStack = StateT Int (WriterT [String] IO)
+        buildLog :: MyStack ()
+        buildLog = do
+            lift $ tell ["my stack"]
+    Here another transformer wraps WriterT, while only the base monad is below WriterT.
+
+5. direct_use_middle:
+    Mark direct_use_middle=true when an actual WriterT computation has at least one transformer layer above it and at least one transformer layer below it. For example:
+        type MyStack = StateT Int (WriterT [String] (ExceptT String IO))
+        buildLog :: MyStack ()
+        buildLog = do
+            lift $ tell ["working"]
+    StateT is above WriterT, and ExceptT is below it, therefore direct_use_middle=true. Note that we use the word "middle" loosely, as we dont care if there are more layers above or below, only that there is at least one above and one below.
+
+
+6. direct_use_outer:
+    Mark direct_use_outer=true when an actual WriterT computation has no transformer layer above WriterT. The monad underneath WriterT may be a base monad or another transformer stack. Like so:
+        WriterT Log IO
+        WriterT Log []
+        WriterT Log (StateT S IO)
+    In all three cases, WriterT is the outermost transformer layer.
+    An example of direct_use_outer=true would be:
+        type MyStack = WriterT [String] IO
+        myLog :: MyStack ()
+        myLog = do
+            tell ["starting"]
+            liftIO (putStrLn "working")
+    A WriterT directly over a base monad and with no transformer layer above it, such as WriterT Log IO, then is outer, not inner.
+
+In polymorphic_interface_use and concrete_interface_use, “interface” refers to the corresponding effect typeclass (in this case is MonadWriter).
+7. polymorphic_interface_use:
+    Mark polymorphic_interface_use=true when an ordinary function or computation runs in a genuinely abstract monad constrained by MonadWriter, and its implementation actually uses Writer operations such as writer, tell, listen, pass, listens, or censor.
+    Example:
+        logValue :: MonadWriter [String] m => Int -> m ()
+        logValue x = tell [show x]
+    Here the concrete monad is not fixed; it is chosen by the caller, and the function actually uses Writer functionality, so polymorphic_interface_use=true.
+
+    A type synonym or newtype that expands to a concrete Writer/WriterT stack does not count as polymorphic use merely because the underlying implementation is hidden.
+
+    Do not mark polymorphic_interface_use=true for MonadWriter instance implementations whose purpose is to lift or forward Writer behavior through a transformer or wrapper. Those belong to the lifting or lifting_t categories.
+
+8. concrete_interface_use:
+    Set concrete_interface_use=true when Writer operations such as
+    writer, tell, listen, pass, listens, or censor are used in a
+    specific concrete monad type that has a MonadWriter instance, but the
+    computation is not implemented as Writer or WriterT.
+
+    This category is for concrete monads that provide Writer functionality
+    through a MonadWriter instance.
+    Example:
+        newtype MyMonad a = MyMonad ...
+        instance MonadWriter MyWrapper MyMonad where
+            tell = ...
+            listen = ...
+            pass = ...
+        foo :: MyWrapper -> MyMonad ()
+        foo b = tell b
+
+    Here foo uses Writer functionality in the concrete monad MyMonad, so
+    concrete_interface_use=true.
+    Defining the MonadWriter instance itself does not by itself establish concrete_interface_use; there must be an ordinary computation using the interface in that concrete monad.
+
+    The MonadWriter instance may be defined in another module. If necessary,
+    inspect the relevant definition to establish that the concrete monad has a
+    MonadWriter instance.
+    Do not mark concrete_interface_use=true when the concrete computation is actually Writer or WriterT; classify those using the appropriate direct_use_* category instead.
+    Do not mark concrete_interface_use=true merely because a concrete monad has a MonadWriter instance. Writer operations must actually be used in the computation being classified.
+9. constraint_only:
+    Mark constraint_only=true when MonadWriter appears only as a type-level requirement, such as in a function signature, class constraint, or data/type declaration, but the file does not actually execute Writer operations and does not use a concrete Writer or WriterT computation.
+
+    Example:
+
+        foo :: MonadWriter [String] m => Int -> m Int
+        foo x = pure (x + 1)
+
+    Here MonadWriter is required by the type signature, but no Writer operation such as writer, tell, listen, pass, listens, or censor is used, so constraint_only=true.
+
+    Do not mark constraint_only=true if the file:
+
+    - actually executes Writer operations,
+    - uses concrete Writer/WriterT computations or runners,
+    - defines a MonadWriter instance,
+    - or re-exports Writer API.
+
+    constraint_only is mutually exclusive with the lifting, lifting_t, polymorphic_interface_use, concrete_interface_use, the direct-use categories, and not_used categories.
+
+    For abstract MonadWriter-constrained code:
+    if Writer operations are actually executed -> polymorphic_interface_use
+    if MonadWriter is only required at the type/API level -> constraint_only
+
+10. not_used:
+    Mark not_used=true when the file imports any of the Writer modules in scope, but contains no attributable use of any Writer API symbol from that import.
+
+    This means there is no use of MonadWriter, writer, tell, listen, pass, listens, censor, Writer, runWriter, execWriter, mapWriter, WriterT, runWriterT, execWriterT, or mapWriterT. In this case, all api_usage counts should be 0.
+
+    Do not count:
+    - the import declaration itself,
+    - occurrences in comments or string literals,
+    - unrelated local definitions that reuse names such as writer or tell,
+    - names that are hidden by the import,
+    - qualified Template Haskell names that do not refer to the imported Writer API.
+    not_used is mutually exclusive with every other Writer-usage category, including re_export.
+
+    example of re_export=true and not_used=false:
+        module Foo (tell) where
+        import Control.Monad.Writer (tell)
+        ... -- file continues without further use of the Writer API. Then api_usage counts are all 0 except for tell=1.
+
+11. re_export:
+    Mark re_export=true when the module exports any symbol that comes from any of the Writer modules in scope, either by re-exporting the whole imported module or by exporting individual imported Writer API symbols.
+    Examples:
+
+        module Foo (module Control.Monad.Writer) where
+        import Control.Monad.Writer
+
+        module Foo (tell, WriterT) where
+        import Control.Monad.Writer (tell, WriterT)
+
+        module Foo (module W) where
+        import qualified Control.Monad.Writer as W
+
+    In these cases, re_export=true. Export-list occurrences of individual Writer API symbols also count toward api_usage.
+
+    Do not mark re_export=true merely because a locally defined function with the same name as a Writer API symbol is exported; the exported symbol must actually come from the Writer import.
+
+General rule for with_* categories: A with_* category is true when the Writer-related computation directly contains, executes, interprets, or is structurally combined with the corresponding effect or abstraction (* can be io, reader, state, parser, rws or exceptions; they will be explained shortly after this section). A combination can be established by:
+a. Structural combination:
+    The corresponding * effect is part of the same monad stack that contains Writer or WriterT. For example:
+        type App = WriterT [String] (StateT Int IO)
+
+    This directly establishes with_state=true and with_io=true
+    The important point is that the effect is part of the same stack, not merely somewhere else in the module.
+
+b. Explicit specialization:
+A polymorphic stack is explicitly instantiated with another effect, making the resulting computation involve Writer/WriterT and another effect *.
+Example:
+    type MyStack m a = WriterT [String] m a
+    foo :: MyStack (Reader Env) ()
+Here the alias expands to a concrete Writer + Reader stack, therefore with_reader=true.
+We could also have something like:
+    type MyStack m a = StateT Int m a
+    foo :: MyStack (Writer [String]) ()
+Where the alias expands to a concrete State + Writer stack, therefore with_state=true.
+
+
+c. Shared polymorphic capability:
+    The same abstract monad has both MonadWriter and * capability, and the implementation actually uses operations from both capabilities. For example:
+        foo :: (MonadWriter [String] m, MonadIO m) => m ()
+        foo = do
+            tell ["starting"]
+            liftIO (putStrLn "hello")
+    Therefore with_io=true
+
+    Merely having both constraints in the type signature is not sufficient. The function body must actually use Writer functionality and the corresponding capability.
+
+
+d. Nested effect execution:
+    A with_* category may also be true when a computation running in a Writer-capable monad explicitly runs or interprets another effect inside that same computation, even if that effect is not structurally part of the Writer stack.
+    Example:
+        parser :: ExceptT Error m Int
+        foo :: MonadWriter [String] m => m (Either Error Int)
+        foo = do
+            tell ["running parser"]
+            runExceptT parser
+    Then with_exceptions=true
+
+    Likewise:
+        stateful :: StateT State m Int
+
+        foo :: MonadWriter [String] m => m (Int, State)
+        foo = do
+            tell ["running state"]
+            runStateT stateful initialState
+    gives with_state=true
+
+Do not mark a with_* category merely because the corresponding module, typeclass, type, or function appears elsewhere in the file. The effect must be directly related to the Writer computation being categorized. Do not infer combinations from effects hidden inside imported helper functions. If you need to read other files in the module in order to categorize precisely, you must do so.
+
+12. with_exceptions:
+    Mark with_exceptions=true when Writer is directly combined with exception handling according to the general with_* rule. This includes stacks such as:
+        WriterT Log (ExceptT Error IO)
+        ExceptT Error (WriterT Log IO)
+
+    It also includes polymorphic code where the same abstract monad actually uses both Writer and exception capabilities:
+        foo :: (MonadWriter [String] m, MonadError Error m) => m ()
+        foo = do
+            tell ["starting"]
+            throwError err
+
+    And it includes explicitly running or interpreting an exception computation as part of a Writer-related computation:
+        computation :: ExceptT Error m Int
+        foo :: MonadWriter [String] m => m (Either Error Int)
+        foo = do
+            tell ["running"]
+            runExceptT computation
+
+    Do not mark with_exceptions=true merely because exception-related types or functions appear elsewhere in the file and are unrelated to the Writer computation.
+
+13. with_io:
+    Mark with_io=true when Writer is directly combined with IO according to the general with_* rule. This includes stacks such as:
+        WriterT Log IO
+        StateT S (WriterT Log IO)
+        WriterT Log (ReaderT Env IO)
+
+    It also includes polymorphic code where the same abstract monad actually uses both Writer and IO capabilities:
+        foo :: (MonadWriter [String] m, MonadIO m) => m ()
+        foo = do
+            tell ["starting"]
+            liftIO (putStrLn "working")
+
+    In this case, with_io=true because the computation actually uses both Writer functionality and IO functionality.
+    Do not mark with_io=true merely because MonadIO appears in a constraint, or because IO-related code appears elsewhere in the file without being part of the Writer-related computation.
+
+
+14. with_reader:
+    Mark with_reader=true when Writer is directly combined with Reader according to the general with_* rule. This includes concrete stacks such as:
+        WriterT Log (ReaderT Env IO)
+        ReaderT Env (WriterT Log IO)
+
+    It also includes explicit specialization:
+        type Stack m a = WriterT Log m a
+        foo :: Stack (Reader Env) ()
+
+    and the reverse:
+        type Stack m a = ReaderT Env m a
+        foo :: Stack (Writer Log) ()
+
+    It also includes polymorphic code where the same abstract monad actually uses both Writer and Reader functionality:
+        foo :: (MonadWriter Log m, MonadReader Env m) => m ()
+        foo = do
+            env <- ask
+            tell [show env]
+
+    Do not mark with_reader=true merely because MonadReader, Reader, ReaderT, ask, or related Reader code appears elsewhere in the file without being directly related to the Writer computation.
+
+15. with_state:
+    Mark with_state=true when Writer is directly combined with State according to the general with_* rule. This includes concrete stacks such as:
+        WriterT Log (StateT S IO)
+        StateT S (WriterT Log IO)
+
+    It also includes explicit specialization in either direction:
+        type Stack m a = WriterT Log m a
+        foo :: Stack (State S) ()
+
+    or:
+        type Stack m a = StateT S m a
+        foo :: Stack (Writer Log) ()
+
+    It also includes polymorphic code where the same abstract monad actually uses both Writer and State functionality:
+        foo :: (MonadWriter Log m, MonadState S m) => m ()
+        foo = do
+            tell log
+            modify update
+
+    Do not mark with_state=true merely because MonadState, State, StateT, get, put, modify, or other State-related code appears elsewhere in the file without being directly related to the Writer computation.
+
+16. with_parser:
+    Mark with_parser=true when Writer is directly combined with a parser computation according to the general with_* rule.
+
+    This includes concrete stacks where a parser transformer and Writer are part of the same computation stack, for example:
+        WriterT Log (ParsecT e s m)
+        ParsecT e s (WriterT Log m)
+
+    It also includes explicit specialization:
+        type Stack m a = WriterT Log m a
+        foo :: Stack (Parsec e s) Result
+
+    or the reverse:
+        type ParserT m a = ParsecT e s m a
+        foo :: ParserT (Writer Log) Result
+
+    It can also apply when a Writer-related computation explicitly runs or interprets a parser computation as part of its work:
+        foo :: MonadWriter Log m => Input -> m (Either ParseError Result)
+        foo input = do
+            tell log
+            pure (parse parser "" input)
+
+    Do not mark with_parser=true merely because parser-related imports, parser types, or parsing functions occur elsewhere in the file without being directly related to the Writer computation.
+
+
+17. with_rws:
+    Mark with_rws=true when Writer is directly combined with an RWS computation according to the general with_* rule. This includes concrete stacks such as:
+        WriterT Log (RWST Env W S IO)
+        RWST Env W S (WriterT Log IO)
+
+    It also includes explicit specialization:
+        type Stack m a = WriterT Log m a
+        foo :: Stack (RWS Env W S) ()
+
+    or the reverse:
+        type Stack m a = RWST Env W S m a
+        foo :: Stack (Writer Log) ()
+    
+    Because RWS/RWST intrinsically combines Reader, Writer, and State effects, actual RWS/RWST usage may also establish with_reader=true and with_state=true when it is directly combined with the Writer-related computation.
+    Do not mark with_rws=true merely because Reader, Writer, and State capabilities happen to appear separately in the same file. The Writer-related computation must be directly combined with an actual RWS/RWST computation or abstraction.
+
+You are allowed to read other files if it would help make a categorization certain. Write which extra files you explored in the comment column.
+
+Return only a valid JSON object with the structure described earlier. No prose, no markdown, no code fences, no explanation.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

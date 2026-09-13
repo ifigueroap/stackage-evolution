@@ -1,7 +1,16 @@
 import json
 
-REFERENCE_FILE = "lts-24-37-reader_reference_corrected.jsonl"
-CODEX_FILE = "reader_testing.jsonl"
+REFERENCE_FILE = "lts-24-37-writer_reference_sample.jsonl"
+CODEX_FILE = "writer_testing.jsonl"
+
+TOP_LEVEL_FIELDS = [
+    "explicit_import",
+    "qualified_import",
+    "strict_import",
+    "lazy_import",
+    "class_import",
+    "cps_import"
+]
 
 
 def load_jsonl(path):
@@ -12,6 +21,7 @@ def load_jsonl(path):
                 record = json.loads(line)
                 records[record["index"]] = record
     return records
+
 
 def compare_dict(reference, codex, section):
     """
@@ -36,6 +46,25 @@ def compare_dict(reference, codex, section):
     return mismatches
 
 
+def compare_top_level(reference, codex):
+    """
+    Compare top-level classification fields.
+
+    Returns a list of mismatches:
+        (field, expected, actual)
+    """
+    mismatches = []
+
+    for field in TOP_LEVEL_FIELDS:
+        expected = reference.get(field)
+        actual = codex.get(field)
+
+        if actual != expected:
+            mismatches.append((field, expected, actual))
+
+    return mismatches
+
+
 def main():
     reference_records = load_jsonl(REFERENCE_FILE)
     codex_records = load_jsonl(CODEX_FILE)
@@ -52,6 +81,11 @@ def main():
         total += 1
         codex = codex_records[index]
 
+        top_level_errors = compare_top_level(
+            reference,
+            codex
+        )
+
         api_errors = compare_dict(
             reference,
             codex,
@@ -64,7 +98,11 @@ def main():
             "categories"
         )
 
-        if not api_errors and not category_errors:
+        if (
+            not top_level_errors
+            and not api_errors
+            and not category_errors
+        ):
             correct += 1
             print(
                 f"[OK] {index}: {reference['module']}"
@@ -74,6 +112,14 @@ def main():
         print(
             f"\n[MISMATCH] {index}: {reference['module']}"
         )
+
+        if top_level_errors:
+            print("  Top-level fields:")
+            for field, expected, actual in top_level_errors:
+                print(
+                    f"    {field}: "
+                    f"expected={expected}, codex={actual}"
+                )
 
         if api_errors:
             print("  API usage:")

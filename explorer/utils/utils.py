@@ -284,9 +284,17 @@ def process_all_lts():
 ###########################  sampling ##########################
 #function that produces a list of random indexes with no duplicates
 #example: get_sample_from_lts("24-37", "Control.Monad.Writer")
-def get_sample_from_lts(lts:str, monad_name:str, sample_percent):
+def get_sample_from_lts_0(lts:str, monad_name:str, sample_percent):
   df_path = f'../data/dfs/lts-{lts}/lts-{lts}-files.df'
   df = pd.read_pickle(df_path)
   rows=len(df[df[monad_name]==1]) #number of files that have that monad, for this lts
   samp = sorted(sample(range(1,rows), math.floor(rows*sample_percent)))
   return samp
+
+def get_sample_from_lts(lts:str, monad_names:list[str], sample_percent:float):
+    df_path = f'../data/dfs/lts-{lts}/lts-{lts}-files.df'
+    df = pd.read_pickle(df_path)
+    filtered_df = df[df[monad_names].eq(1).any(axis=1)]
+    rows = len(filtered_df)
+    samp = sorted(sample(range(1, rows + 1),math.floor(rows * sample_percent)))
+    return samp

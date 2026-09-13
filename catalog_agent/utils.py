@@ -1,6 +1,9 @@
 import os 
 import pandas as pd
 import json
+CATALOG_AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(CATALOG_AGENT_DIR)
+
 def get_monad_files(files_df, monad_name):
     """get files that import a specific monad"""
     if monad_name not in files_df.columns:
@@ -10,7 +13,13 @@ def get_monad_files(files_df, monad_name):
 def load_files_df(lts):
     """load the files dataframe for a given lts
     lts: string label for lts version, for example, '12-13' """
-    files_path = f'../data/dfs/lts-{lts}/lts-{lts}-files.df'
+    files_path = os.path.join(
+        REPO_ROOT,
+        "data",
+        "dfs",
+        f"lts-{lts}",
+        f"lts-{lts}-files.df"
+    )
     if not os.path.exists(files_path):
         print("Error: file path not found "+files_path)
         return None
@@ -19,7 +28,13 @@ def load_files_df(lts):
 def load_package_df(lts):
     """load the package dataframe for a given lts
     lts: string label for lts version, for example, '12-13' """
-    files_path = f'../data/dfs/lts-{lts}/lts-{lts}.df'
+    files_path = os.path.join(
+        REPO_ROOT,
+        "data",
+        "dfs",
+        f"lts-{lts}",
+        f"lts-{lts}.df"
+    )
     if not os.path.exists(files_path):
         print("Error: file path not found "+files_path)
         return None
@@ -89,8 +104,24 @@ def extract_item_completed(codex_text):
     return {"parse_error": True, "raw_text": codex_text}
 
 def load_generated_df(dfs_name: str, lts: str):
-    path = f"../data/dfs/lts-{lts}/lts-{lts}-{dfs_name}.df"
+    path = os.path.join(
+        REPO_ROOT,
+        "data",
+        "dfs",
+        f"lts-{lts}",
+        f"lts-{lts}-{dfs_name}.df"
+    )
+
     if not os.path.exists(path):
         print("Error: file path not found " + path)
         return None
     return pd.read_pickle(path)
+
+
+def load_sample(sample_path: str) -> list[int]:
+    with open(sample_path, "r") as f:
+        return [
+            int(line.strip())
+            for line in f
+            if line.strip()
+        ]

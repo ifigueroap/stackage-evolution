@@ -6,13 +6,15 @@ from cataloger import *
 from utils import load_sample
 
 LTS="24-37"
-MONADS=["Control.Monad.Reader",
-        #"Control.Monad.Reader.Lazy",
-        #"Control.Monad.Reader.Strict"
+MONADS=["Control.Monad.Writer",
+        #"Control.Monad.Writer.Lazy",
+        #"Control.Monad.Writer.Strict"
+        #"Control.Monad.Writer.Class"
+        #"Control.Monad.Writer.CPS"
         ]
-OUTPUT_JSONL="reader_testing.jsonl"
-INSTRUCTIONS_PATH = "../instructions/instructions_reader.md"
-SAMPLE_PATH="sample_indexes/lts-24-37-reader-sample.txt"
+OUTPUT_JSONL="writer_testing.jsonl"
+INSTRUCTIONS_PATH = "../instructions/instructions_writer.md"
+SAMPLE_PATH="sample_indexes/lts-24-37-writer-sample.txt"
 REPO_ROOT = os.path.abspath("../..")
 print("root:",REPO_ROOT)
 
@@ -37,6 +39,7 @@ sample = load_sample(SAMPLE_PATH)
 
 DF_FILES = DF_FILES.iloc[
     [i - 1 for i in sample]
+    # [i for i in sample]
 ].copy()
 # ].reset_index(drop=True)
 
