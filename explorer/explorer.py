@@ -50,7 +50,25 @@ other_modules = [
 ]
 
 ALL_MONAD_MODULES = mtl_modules + transfromers_modules + other_modules
-
+MONAD_GROUPS = {
+    "Control.Monad.State": [
+        "Control.Monad.State",
+        "Control.Monad.State.Strict",
+        "Control.Monad.State.Lazy",
+        "Control.Monad.State.Class",
+    ],
+    "Control.Monad.Reader": [
+            "Control.Monad.Reader",
+            "Control.Monad.Reader.Class",
+        ],
+        "Control.Monad.Writer": [
+                "Control.Monad.Writer",
+                "Control.Monad.Writer.Strict",
+                "Control.Monad.Writer.Lazy",
+                "Control.Monad.Writer.Class",
+                "Control.Monad.Writer.CPS",
+            ]
+}
 ################## load dataframes ####################
 def load_files_df(lts):
     """load the files dataframe for a given lts
@@ -83,11 +101,21 @@ def get_available_lts_list():
     return sorted(lts_list, key=lambda x: [int(i) for i in x.split('-')])
 
 def get_monad_files(files_df, monad_name):
-    """get files that import a specific monad"""
-    if monad_name not in files_df.columns:
-        return pd.DataFrame()
-    return files_df[files_df[monad_name] == 1]
+    """Get files that import a specific monad or one of its grouped variants."""
 
+    monads = MONAD_GROUPS.get(monad_name, [monad_name])
+
+    existing_monads = [
+        monad for monad in monads
+        if monad in files_df.columns
+    ]
+
+    if not existing_monads:
+        return pd.DataFrame()
+
+    return files_df[
+        files_df[existing_monads].eq(1).any(axis=1)
+    ]
 ############ display functrions##########
 
 def find_package_root(cabal_path):

@@ -124,5 +124,3 @@ def run_cataloger(lts:str, out_jsonl_filename:str, repo_root_dir:str,instruction
         
         print("saved")
         print(result.stdout)
-        
-
